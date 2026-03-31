@@ -17,6 +17,7 @@
 
     // --- アイコンコンポーネント ---
     const IconCircle = ({size=24}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle></svg>;
+    const IconCheckCircle2 = ({size=24}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>;
     const IconArrowUp = ({size=24}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>;
     const IconArrowDown = ({size=24}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>;
     const IconChevronLeft = ({size=24}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>;
@@ -25,6 +26,7 @@
     const IconPlus = ({size=24}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>;
     const IconArrowDownToLine = ({size=24}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 17V3"/><path d="m6 11 6 6 6-6"/><path d="M19 21H5"/></svg>;
     const IconArrowUpToLine = ({size=24}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3h14"/><path d="m18 13-6-6-6 6"/><path d="M12 7v14"/></svg>;
+    const IconCalendarDays = ({size=24, className=""}) => <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>;
 
     // --- ユーティリティ関数 ---
     const getTodayStr = () => {
@@ -64,7 +66,10 @@
     function App() {
       const todayStr = getTodayStr();
       
-      const twoWeeksDates = Array.from({ length: 14 }).map((_, i) => offsetDateStr(todayStr, i));
+      const [startDateOffset, setStartDateOffset] = useState(0);
+      const displayStartDate = offsetDateStr(todayStr, startDateOffset);
+      
+      const twoWeeksDates = Array.from({ length: 14 }).map((_, i) => offsetDateStr(displayStartDate, i));
       
       const [selectedDate, setSelectedDate] = useState(todayStr);
 
@@ -80,25 +85,29 @@
           try {
             const loadedTasks = JSON.parse(saved);
             return loadedTasks.map(t => {
-              if (t.status === 'immediate') return { id: t.id, text: t.text, date: todayStr, color: 'blue', time: '' };
-              if (t.status === 'later') return { id: t.id, text: t.text, date: null, color: 'blue', time: '' };
-              if (t.date && t.date < todayStr) return { ...t, date: todayStr, color: t.color || 'blue', time: t.time || '' };
-              return { ...t, color: t.color || 'blue', time: t.time || '' };
+              const baseTask = { ...t, color: t.color || 'blue', time: t.time || '', completed: !!t.completed };
+              if (t.status === 'immediate') return { ...baseTask, date: todayStr };
+              if (t.status === 'later') return { ...baseTask, date: null };
+              
+              if (t.date && t.date < todayStr && !t.completed) return { ...baseTask, date: todayStr };
+              return baseTask;
             });
           } catch (e) {
             return [];
           }
         }
         return [
-          { id: '1', text: 'サンプル：今日の夕方までにメール返信', date: todayStr, color: 'red', time: '17:00' },
-          { id: '2', text: 'サンプル：明日のミーティングの資料確認', date: offsetDateStr(todayStr, 1), color: 'blue', time: '' },
-          { id: '3', text: 'サンプル：週末に備品の買い出し', date: null, color: 'green', time: '' }
+          { id: '1', text: 'サンプル：今日の夕方までにメール返信', date: todayStr, color: 'red', time: '17:00', completed: false },
+          { id: '2', text: 'サンプル：明日のミーティングの資料確認', date: offsetDateStr(todayStr, 1), color: 'blue', time: '', completed: false },
+          { id: '3', text: 'サンプル：週末に備品の買い出し', date: null, color: 'green', time: '', completed: false }
         ];
       });
 
       const [newTaskText, setNewTaskText] = useState('');
       const [newTaskTime, setNewTaskTime] = useState('');
+      const [newTaskDate, setNewTaskDate] = useState(todayStr);
       const [newTaskColor, setNewTaskColor] = useState('blue');
+      const [isDaily, setIsDaily] = useState(false);
 
       useEffect(() => {
         localStorage.setItem('task_processor_data', JSON.stringify(tasks));
@@ -108,6 +117,10 @@
         localStorage.setItem('task_processor_colors', JSON.stringify(taskColors));
       }, [taskColors]);
 
+      useEffect(() => {
+        setNewTaskDate(selectedDate);
+      }, [selectedDate]);
+
       const updateColorLabel = (id, newLabel) => {
         setTaskColors(taskColors.map(c => c.id === id ? { ...c, label: newLabel } : c));
       };
@@ -116,20 +129,37 @@
         e.preventDefault();
         if (!newTaskText.trim()) return;
         
-        const newTask = {
-          id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
-          text: newTaskText.trim(),
-          date: selectedDate,
-          time: newTaskTime,
-          color: newTaskColor
-        };
+        let newTasks = [];
+        if (isDaily) {
+          newTasks = twoWeeksDates.map(dateStr => ({
+            id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString() + Math.random(),
+            text: newTaskText.trim(),
+            date: dateStr,
+            time: newTaskTime,
+            color: newTaskColor,
+            completed: false
+          }));
+        } else {
+          newTasks = [{
+            id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+            text: newTaskText.trim(),
+            date: newTaskDate || null,
+            time: newTaskTime,
+            color: newTaskColor,
+            completed: false
+          }];
+        }
         
-        setTasks([newTask, ...tasks]);
+        setTasks([...newTasks, ...tasks]);
         setNewTaskText('');
         setNewTaskTime('');
       };
 
-      const completeTask = (id) => {
+      const toggleTask = (id) => {
+        setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+      };
+
+      const deleteTask = (id) => {
         setTasks(tasks.filter(t => t.id !== id));
       };
 
@@ -169,23 +199,54 @@
         setTasks(newTasks);
       };
 
-      const laterTasks = tasks.filter(t => t.date === null || t.date > twoWeeksDates[13]);
+      const laterTasks = tasks.filter(t => t.date === null || t.date > offsetDateStr(displayStartDate, 13));
       const selectedDateTasks = tasks.filter(t => t.date === selectedDate);
+
+      const resetToToday = () => {
+        setStartDateOffset(0);
+        setSelectedDate(todayStr);
+      };
 
       return (
         <div className="min-h-screen bg-gray-100 text-gray-800 font-sans pb-20">
           <div className="max-w-md mx-auto p-4 sm:p-6">
+            
             <header className="mb-6">
-              <h1 className="text-xl font-bold text-gray-900 tracking-tight">2W タスクカレンダー</h1>
+              <h1 className="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                <IconCalendarDays className="text-blue-600" />
+                2W タスクカレンダー
+              </h1>
             </header>
 
             <div className="space-y-6">
+              
               <section className="bg-white p-2 sm:p-4 rounded-xl shadow-sm border border-gray-200">
+                <div className="flex justify-between items-center mb-3 px-1">
+                  <button 
+                    onClick={() => setStartDateOffset(prev => prev - 7)}
+                    className="text-sm flex items-center text-gray-600 hover:text-blue-600 transition-colors p-1"
+                  >
+                    <IconChevronLeft size={18} /> 前週
+                  </button>
+                  <button 
+                    onClick={resetToToday}
+                    className={`text-sm font-medium px-3 py-1 rounded-full transition-colors ${startDateOffset === 0 ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    今日に戻る
+                  </button>
+                  <button 
+                    onClick={() => setStartDateOffset(prev => prev + 7)}
+                    className="text-sm flex items-center text-gray-600 hover:text-blue-600 transition-colors p-1"
+                  >
+                    次週 <IconChevronRight size={18} />
+                  </button>
+                </div>
+
                 <div className="grid grid-cols-7 gap-1 sm:gap-2">
                   {twoWeeksDates.map((dateStr, index) => {
                     const dayTasks = tasks.filter(t => t.date === dateStr);
                     const d = new Date(dateStr);
-                    const isToday = index === 0;
+                    const isToday = dateStr === todayStr;
                     const isSaturday = d.getDay() === 6;
                     const isSunday = d.getDay() === 0;
                     const isSelected = dateStr === selectedDate;
@@ -207,8 +268,8 @@
                           {dayTasks.map(t => {
                             const c = taskColors.find(col => col.id === t.color)?.hex || '#3b82f6';
                             return (
-                              <div key={t.id} className="text-[9px] sm:text-[10px] leading-tight mb-0.5 truncate flex items-center gap-0.5" title={t.text}>
-                                <span style={{color: c}}>⚫️</span>
+                              <div key={t.id} className={`text-[9px] sm:text-[10px] leading-tight mb-0.5 truncate flex items-center gap-0.5 ${t.completed ? 'opacity-40 line-through' : ''}`} title={t.text}>
+                                <span style={{color: t.completed ? '#9ca3af' : c}}>⚫️</span>
                                 <span className="text-gray-600 truncate">{t.time ? t.time : t.text}</span>
                               </div>
                             );
@@ -229,13 +290,21 @@
 
                 <div className="p-4">
                   <form onSubmit={addTask} className="mb-6 space-y-3">
-                    <div className="flex gap-2">
-                      <input
-                        type="time"
-                        value={newTaskTime}
-                        onChange={(e) => setNewTaskTime(e.target.value)}
-                        className="p-2 border border-gray-300 rounded-lg text-sm w-24 outline-none focus:ring-2 focus:ring-blue-500"
-                      />
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="date"
+                          value={newTaskDate || ''}
+                          onChange={(e) => setNewTaskDate(e.target.value)}
+                          className="p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 w-32"
+                        />
+                        <input
+                          type="time"
+                          value={newTaskTime}
+                          onChange={(e) => setNewTaskTime(e.target.value)}
+                          className="p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 w-24"
+                        />
+                      </div>
                       <input
                         type="text"
                         value={newTaskText}
@@ -265,12 +334,24 @@
                           {isEditingColors ? '完了' : '名前変更'}
                         </button>
                       </div>
-                      <button
-                        type="submit"
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center justify-center gap-1 shrink-0"
-                      >
-                        <IconPlus size={16} /> 追加
-                      </button>
+                      
+                      <div className="flex items-center gap-3 shrink-0">
+                        <label className="flex items-center gap-1 text-xs text-gray-700 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                          <input 
+                            type="checkbox" 
+                            checked={isDaily} 
+                            onChange={(e) => setIsDaily(e.target.checked)}
+                            className="rounded text-blue-600 focus:ring-blue-500"
+                          />
+                          <span>毎日</span>
+                        </label>
+                        <button
+                          type="submit"
+                          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center justify-center gap-1"
+                        >
+                          <IconPlus size={16} /> 追加
+                        </button>
+                      </div>
                     </div>
 
                     {isEditingColors && (
@@ -298,13 +379,13 @@
                       selectedDateTasks.map((task) => {
                         const cColor = taskColors.find(col => col.id === task.color)?.hex || '#3b82f6';
                         return (
-                          <div key={task.id} className="bg-white rounded-lg border border-gray-200 p-3 flex flex-col gap-2 shadow-sm">
+                          <div key={task.id} className={`bg-white rounded-lg border border-gray-200 p-3 flex flex-col gap-2 shadow-sm transition-all ${task.completed ? 'bg-gray-50 opacity-60' : ''}`}>
                             <div className="flex items-start gap-2">
-                              <button onClick={() => completeTask(task.id)} className="mt-0.5 text-gray-300 hover:text-green-500 transition-colors shrink-0">
-                                <IconCircle size={20} />
+                              <button onClick={() => toggleTask(task.id)} className={`mt-0.5 transition-colors shrink-0 ${task.completed ? 'text-green-500' : 'text-gray-300 hover:text-green-500'}`}>
+                                {task.completed ? <IconCheckCircle2 size={20} /> : <IconCircle size={20} />}
                               </button>
-                              <span className="flex-1 text-sm font-medium text-gray-800 break-words leading-tight flex items-center gap-1">
-                                <span style={{color: cColor}}>⚫️</span>
+                              <span className={`flex-1 text-sm font-medium break-words leading-tight flex items-center gap-1 ${task.completed ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
+                                <span style={{color: task.completed ? '#9ca3af' : cColor}}>⚫️</span>
                                 {task.time && <span className="text-gray-500 text-xs mr-1">{task.time}</span>}
                                 {task.text}
                               </span>
@@ -330,7 +411,6 @@
                               <div className="flex gap-1 items-center">
                                 <button 
                                   onClick={() => shiftDate(task.id, -1)}
-                                  disabled={task.date === twoWeeksDates[0]}
                                   className="p-1 text-blue-500 hover:bg-blue-100 rounded disabled:opacity-30"
                                   title="前日へ"
                                 >
@@ -352,8 +432,9 @@
                                   <IconArrowDownToLine size={16} />
                                 </button>
                                 <button 
-                                  onClick={() => completeTask(task.id)}
+                                  onClick={() => deleteTask(task.id)}
                                   className="p-1 text-gray-300 hover:text-red-500 rounded ml-1"
+                                  title="削除"
                                 >
                                   <IconTrash2 size={16} />
                                 </button>
@@ -378,17 +459,20 @@
                   ) : (
                     laterTasks.map((task) => {
                       const cColor = taskColors.find(col => col.id === task.color)?.hex || '#3b82f6';
+                      const dateLabel = task.date ? task.date.slice(5).replace('-', '/') : '未定';
                       return (
                         <div 
                           key={task.id} 
-                          className="bg-gray-50 p-3 rounded-lg border border-gray-200 flex flex-col gap-2 opacity-80"
+                          className={`bg-gray-50 p-3 rounded-lg border border-gray-200 flex flex-col gap-2 transition-all ${task.completed ? 'opacity-50' : 'opacity-80'}`}
                         >
                           <div className="flex items-start gap-2">
-                            <button onClick={() => completeTask(task.id)} className="mt-0.5 text-gray-300 hover:text-green-500 transition-colors shrink-0">
-                              <IconCircle size={20} />
+                            <button onClick={() => toggleTask(task.id)} className={`mt-0.5 transition-colors shrink-0 ${task.completed ? 'text-green-500' : 'text-gray-300 hover:text-green-500'}`}>
+                              {task.completed ? <IconCheckCircle2 size={20} /> : <IconCircle size={20} />}
                             </button>
-                            <span className="flex-1 text-sm text-gray-600 break-words flex items-center gap-1">
-                              <span style={{color: cColor}}>⚫️</span>
+                            <span className={`flex-1 text-sm break-words flex items-center gap-1 ${task.completed ? 'text-gray-400 line-through' : 'text-gray-600'}`}>
+                              <span style={{color: task.completed ? '#9ca3af' : cColor}}>⚫️</span>
+                              {task.date && <span className="text-blue-600 text-xs font-medium mr-1">{dateLabel}</span>}
+                              {task.time && <span className="text-gray-500 text-xs mr-1">{task.time}</span>}
                               {task.text}
                             </span>
                           </div>
@@ -418,8 +502,9 @@
                                 <IconArrowUpToLine size={14} /> 今日へ
                               </button>
                               <button 
-                                onClick={() => completeTask(task.id)}
+                                onClick={() => deleteTask(task.id)}
                                 className="p-1 text-gray-300 hover:text-red-500 rounded hover:bg-red-50"
+                                title="削除"
                               >
                                 <IconTrash2 size={14} />
                               </button>
@@ -431,6 +516,7 @@
                   )}
                 </div>
               </section>
+
             </div>
           </div>
         </div>
